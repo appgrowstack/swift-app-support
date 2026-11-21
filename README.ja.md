@@ -1,44 +1,89 @@
-[English](./README.md) | 日本語
-
 # swift-app-support
 
-小さなアプリの中のサポート。開発者が答えるのに要る文脈を添える問い合わせのフォームと、書く前に探せるヘルプの記事。問い合わせは選んだ送り先（transport）へ行きます。サポートのアドレスへのメールか、利用者の問い合わせと返事もアプリの中に持ってくるサポートのサーバーです。
+小さなアプリにアプリの中のサポートを足す。答えるのに要る情報を添える問い合わせのフォームと、書く前に探せるヘルプの記事。
 
-> 非公開のモノリポで作り、ここへ片方向に写しています。Issue は歓迎します。Pull Request は受け付けていません。
+[English](./README.md)
 
-## できること
+![Swift](https://img.shields.io/badge/Swift-6.2-orange.svg)
+![Platforms](https://img.shields.io/badge/Platforms-iOS%2017%20%7C%20macOS%2014-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-- **書く前に答える。** 入力の途中で、もう答えている記事をフォームに出す（`HelpSearch` は日本語のような空白の無い言葉も探せる）
-- **文脈を自動で添える。**アプリのバージョン・ビルド・OS・端末・配布元・Premiumか・フォームを開いた画面・記録したセッション・直近の出来事（型のまま）・出したキャンペーン。アプリの中で利用者が書いた文は入れない
-- **単体で動く。** `MailSupportTransport`は本文の下に文脈を読める行で付けたメールを開く。`BundledHelpArticles`はアプリに同梱した記事を読む
-- **できることはtransportが決める。** `SupportTransport`はできることを`capabilities`で返す。返事があれば自分の問い合わせの一覧を出し、`SupportCenter.unreadCount`をバッジに使える。画像があれば1件に4枚まで、メタデータを外した5MB以下のJPEGにして送る。できない物は画面が隠す
-- **依存なし。** Foundation・ImageIO・Observation（メールを開くのにUIKitかAppKit）。SwiftUIは`SupportSwiftUI`だけ
+問い合わせは選んだtransportへ送ります。サポートのアドレスへのメールか、利用者の問い合わせと返事もアプリの中に持ってくるサポートのサーバーです。
 
-## 使い方
+## 機能
+
+- **書く前に答える。** 入力の途中で、もう答えになっている記事をフォームに出します（`HelpSearch` は日本語のような空白の無い言葉も探せます）
+- **情報を添える。** アプリのバージョン・ビルド・OS・端末のモデル・配布元・購読の状態・フォームを開いた画面・記録したセッション・直近の出来事（型のまま）・出したキャンペーン。アプリのほかの所で利用者が書いた文は入れません
+- **単体で動く。** `MailSupportTransport` は本文の下に情報を読める行で付けたメールを開きます。`BundledHelpArticles` はアプリに同梱した記事を読みます
+- **できることはtransportが決める。** `SupportTransport` はできることを `capabilities` で返します。返事があれば利用者の問い合わせの一覧を出し、`SupportCenter.unreadCount` をバッジに使えます。画像があればフォームでスクリーンショットを4枚まで受け、メタデータを外した5MB以下のJPEGにします。できない物は画面に出しません
+- **外部の依存なし。** Foundation・ImageIO・Observation（メールを開くときだけUIKitかAppKit）。SwiftUIは `SupportSwiftUI` の中だけです
+
+### 文言
+
+`SupportStrings.english` と `.japanese` を持っていて、`SupportStrings.forLanguage(_:)` がそのどちらかを選びます。
+ほかの言語は `.english` をコピーし、アプリの文字列のカタログから項目を差し替えて `strings:` に渡します。
+
+## はじめに
 
 ```swift
 import SupportCore
 import SupportSwiftUI
+import SwiftUI
 
-let support = SupportCenter(
+@MainActor let support = SupportCenter(
     transport: MailSupportTransport(to: "support@example.com"),
-    articles: BundledHelpArticles(resource: "help"),      // アプリに同梱した help.json
-    lang: "ja",
+    articles: BundledHelpArticles(resource: "help"),      // help.json in the app bundle
+    lang: "en",
     context: { screen in
-        SupportContext.current(channel: .appStore, isPremium: premium.isPremium, screen: screen)
+        SupportContext.current(channel: .appStore, isPremium: false, screen: screen)
     }
 )
 
-NavigationLink("ヘルプ") { HelpArticlesView(center: support, screen: "settings") }
-    .badge(support.unreadCount)
+struct SettingsView: View {
+    var body: some View {
+        List {
+            NavigationLink("Help") { HelpArticlesView(center: support, screen: "settings") }
+                .badge(support.unreadCount)
+            // Or straight to the form, e.g. from the subscription screen
+            NavigationLink("Contact us") {
+                SupportFormView(center: support, screen: "settings", category: .billing)
+            }
+        }
+    }
+}
 ```
 
-返事を持つtransportなら、前面に戻ったら`await support.refresh()`で返事を読み直します。
+返事のあるtransportなら、前面に戻ったときに `await support.refresh()` を呼んで新しい返事を読みます。
 
-## 文言
+### サーバーにつなぐ
 
-`SupportStrings.english` と `.japanese` を持っています。ほかの言語は `.english` を写し、アプリの文字列から差し替えて `strings:` に渡します。
+このパッケージは単体で使えます。サーバーにつなぐときは、このパッケージで送り先を書く代わりに、コネクターのパッケージ [swift-appgrowstack](https://github.com/appgrowstack/swift-appgrowstack) の対応するtrait（SwiftPMのtraits）を有効にします。
+
+## ドキュメント
+
+APIの説明は `Sources/SupportCore` と `Sources/SupportSwiftUI` のシンボルのドキュメントです。
+XcodeのProduct > Build Documentationで開けます。変更は [CHANGELOG.md](./CHANGELOG.md) にあります。
+
+## 入れ方
+
+```swift
+.package(url: "https://github.com/appgrowstack/swift-app-support.git", .upToNextMinor(from: "0.2.0"))
+```
+
+```swift
+.product(name: "SupportSwiftUI", package: "swift-app-support")
+```
+
+| プロダクト | 中身 | 依存 |
+|---|---|---|
+| `SupportCore` | `SupportCenter`・`SupportTransport`・`MailSupportTransport`・`SupportContext`・`BundledHelpArticles`・`HelpSearch` | Foundation・ImageIO・Observation |
+| `SupportSwiftUI` | `SupportFormView`・`SupportTicketsView`・`SupportThreadView`・`HelpArticlesView`・`SupportStrings` | SwiftUI |
+
+## 動く環境
+
+- iOS 17.0+ / macOS 14.0+
+- Swift 6.2+
 
 ## ライセンス
 
-MIT
+MIT。[LICENSE](./LICENSE) を見てください。
