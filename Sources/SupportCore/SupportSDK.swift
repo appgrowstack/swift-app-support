@@ -4,5 +4,5 @@ public enum SupportSDK {
     /// The package name (`swift-app-support`).
     public static let name = "swift-app-support"
     /// The released version: the newest `## [x.y.z]` section of the CHANGELOG (a test checks it).
-    public static let version = "0.3.0"
+    public static let version = "0.4.0"
 }

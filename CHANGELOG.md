@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+
 ### Changed
 
 - `SupportTransport.submit` and `SupportCenter.submit` return `SupportSubmission` (the request's id and
