@@ -84,6 +84,12 @@ XcodeのProduct > Build Documentationで開けます。変更は [CHANGELOG.md](
 - iOS 17.0+ / macOS 14.0+
 - Swift 6.2+
 
+## 入れ方
+
+```swift
+.package(url: "https://github.com/appgrowstack/swift-app-support.git", .upToNextMinor(from: "0.2.0"))
+```
+
 ## ライセンス
 
 MIT。[LICENSE](./LICENSE) を見てください。

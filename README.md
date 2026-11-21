@@ -92,6 +92,12 @@ Open it in Xcode with Product > Build Documentation. Changes are listed in
 | `SupportCore` | `SupportCenter`, `SupportTransport`, `MailSupportTransport`, `SupportContext`, `BundledHelpArticles`, `HelpSearch` | Foundation, ImageIO, Observation |
 | `SupportSwiftUI` | `SupportFormView`, `SupportTicketsView`, `SupportThreadView`, `HelpArticlesView`, `SupportStrings` | SwiftUI |
 
+## Installation
+
+```swift
+.package(url: "https://github.com/appgrowstack/swift-app-support.git", .upToNextMinor(from: "0.2.0"))
+```
+
 ## Requirements
 
 - iOS 17.0+ / macOS 14.0+

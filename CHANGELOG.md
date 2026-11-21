@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-21
+
 ### Changed
 
 - **Breaking.** `SupportCenter(transport:articles:lang:context:)` takes any `SupportTransport`
@@ -15,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `SupportSDK.name` and `SupportSDK.version`, for a connector to report when it calls a server.
 - `MailSupportTransport`: opens a mail to your support address with the context as readable lines.
 - `BundledHelpArticles`: help articles shipped in the app, falling back to the base language and
   then English.
