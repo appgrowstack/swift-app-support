@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-22
+
 ### Added
 
 - `SupportStrings` in Korean, Simplified and Traditional Chinese, Spanish, Brazilian Portuguese,
