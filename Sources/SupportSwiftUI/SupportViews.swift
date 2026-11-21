@@ -113,7 +113,7 @@ public struct SupportFormView: View {
         Task {
             defer { sending = false }
             do {
-                sentID = try await center.submit(request, screen: screen)
+                sentID = try await center.submit(request, screen: screen).ticketID
             } catch SupportError.rateLimited {
                 failure = strings.rateLimited
             } catch {

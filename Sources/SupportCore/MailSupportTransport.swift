@@ -22,9 +22,9 @@ public struct MailSupportTransport: SupportTransport {
 
     public var capabilities: SupportCapabilities { SupportCapabilities(replies: false, images: false) }
 
-    public func submit(_ request: SupportRequest, context: SupportContext, lang: String) async throws -> String {
+    public func submit(_ request: SupportRequest, context: SupportContext, lang: String) async throws -> SupportSubmission {
         guard await open(mailtoURL(request, context: context)) else { throw SupportError.transport("no mail app") }
-        return "mail"
+        return SupportSubmission(ticketID: "mail")
     }
 
     public func tickets() async throws -> [SupportTicket] { [] }

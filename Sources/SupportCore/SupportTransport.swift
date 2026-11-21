@@ -18,14 +18,31 @@ public struct SupportCapabilities: Sendable, Hashable {
 public protocol SupportTransport: Sendable {
     var capabilities: SupportCapabilities { get }
 
-    /// Sends a request with its images (when ``SupportCapabilities/images``). Returns its id.
-    func submit(_ request: SupportRequest, context: SupportContext, lang: String) async throws -> String
+    /// Sends a request with its images (when ``SupportCapabilities/images``).
+    ///
+    /// Throws only when the request itself was not made. Once it exists, an image that could not be
+    /// sent is handed back in ``SupportSubmission/unsentImages`` instead of throwing, so sending the
+    /// form again never makes a second request.
+    func submit(_ request: SupportRequest, context: SupportContext, lang: String) async throws -> SupportSubmission
 
     /// This install's requests, newest first. Empty when the transport has no replies.
     func tickets() async throws -> [SupportTicket]
 
     /// Adds a message to one of this install's requests.
     func reply(_ body: String, to ticketID: String) async throws -> SupportMessage
+}
+
+/// What sending a request came to: the new request's id, and the images that did not reach it.
+public struct SupportSubmission: Sendable, Hashable {
+    public var ticketID: String
+    /// Images the request was made without (the connection dropped after the request was made).
+    /// Send them to ``ticketID`` again, or tell the person to attach them in a reply.
+    public var unsentImages: [SupportImage]
+
+    public init(ticketID: String, unsentImages: [SupportImage] = []) {
+        self.ticketID = ticketID
+        self.unsentImages = unsentImages
+    }
 }
 
 /// The help articles to search before writing.

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `SupportTransport.submit` and `SupportCenter.submit` return `SupportSubmission` (the request's id and
+  the `unsentImages`). A transport throws only when the request was not made; images that fail after
+  that come back instead, so sending the form again never makes a second request.
+
 ## [0.3.0] - 2026-11-22
 
 ### Added

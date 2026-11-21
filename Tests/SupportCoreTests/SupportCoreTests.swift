@@ -10,9 +10,9 @@ final class FakeTransport: SupportTransport, HelpArticleSource, @unchecked Senda
     var ticketList: Result<[SupportTicket], SupportError> = .success([])
     var articleList: [HelpArticle] = []
 
-    func submit(_ request: SupportRequest, context: SupportContext, lang: String) async throws -> String {
+    func submit(_ request: SupportRequest, context: SupportContext, lang: String) async throws -> SupportSubmission {
         lock.withLock { submitted.append((request, context, lang)) }
-        return "tkt_0123456789abcdef"
+        return SupportSubmission(ticketID: "tkt_0123456789abcdef")
     }
 
     func tickets() async throws -> [SupportTicket] { try ticketList.get() }
@@ -51,7 +51,7 @@ struct MailSupportTransportTests {
         var ctx = context()
         ctx.sessionID = "ses_0123456789abcdef"
         let id = try await mail.submit(SupportRequest(category: .billing, subject: "  ", body: " 解約したい \n"), context: ctx, lang: "ja")
-        #expect(id == "mail")
+        #expect(id == SupportSubmission(ticketID: "mail"))
         let url = try #require(opened.all.first)
         let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
         #expect(components.scheme == "mailto")

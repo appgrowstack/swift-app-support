@@ -89,14 +89,15 @@ public final class SupportCenter {
         HelpSearch.search(text, in: articles, limit: limit)
     }
 
-    /// Sends the form. Returns the new request's id and reloads the list.
+    /// Sends the form and reloads the list. Throws only when the request was not made; images that
+    /// did not reach it come back in ``SupportSubmission/unsentImages``.
     @discardableResult
-    public func submit(_ request: SupportRequest, screen: String? = nil) async throws -> String {
+    public func submit(_ request: SupportRequest, screen: String? = nil) async throws -> SupportSubmission {
         var request = request
         if !capabilities.images { request.images = [] }
-        let id = try await transport.submit(request, context: context(screen), lang: lang)
+        let submission = try await transport.submit(request, context: context(screen), lang: lang)
         if capabilities.replies, let t = try? await transport.tickets() { tickets = t }
-        return id
+        return submission
     }
 
     /// Adds a message to a request and reloads it.
