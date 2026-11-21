@@ -48,9 +48,11 @@ public struct SupportFormView: View {
                         ForEach(SupportCategory.allCases, id: \.self) { c in Text(strings.categoryNames[c] ?? c.rawValue).tag(c) }
                     }
                     TextField(strings.subject, text: $subject)
+                        .supportPrivate(.subject)
                 }
                 Section(strings.body) {
                     TextField(strings.bodyPlaceholder, text: $message, axis: .vertical).lineLimit(5 ... 14)
+                        .supportPrivate(.body)
                 }
                 let suggestions = center.suggestions(for: subject + " " + message)
                 if !suggestions.isEmpty {
@@ -76,6 +78,7 @@ public struct SupportFormView: View {
                         .keyboardType(.emailAddress)
                         .textInputAutocapitalization(.never)
                     #endif
+                        .supportPrivate(.email)
                 } footer: {
                     Text(strings.emailFooter)
                 }
@@ -149,6 +152,7 @@ public struct SupportTicketsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text(ticket.subject ?? ticket.messages.first?.body ?? "").lineLimit(1).font(.body.weight(center.isUnread(ticket) ? .semibold : .regular))
+                                    .supportPrivate(.ticketTitle)
                                 if center.isUnread(ticket) { Circle().fill(.tint).frame(width: 8, height: 8) }
                             }
                             Text("\(strings.statusNames[ticket.status] ?? ticket.status.rawValue) · \(ticket.updatedAt.formatted(date: .abbreviated, time: .shortened))")
@@ -190,6 +194,7 @@ public struct SupportThreadView: View {
                             .padding(10)
                             .background(m.from == .user ? AnyShapeStyle(.tint.opacity(0.15)) : AnyShapeStyle(.quaternary), in: RoundedRectangle(cornerRadius: 12))
                             .textSelection(.enabled)
+                            .supportPrivate(.message)
                         Text(m.at.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: m.from == .user ? .trailing : .leading)
@@ -198,6 +203,7 @@ public struct SupportThreadView: View {
                 if ticket.status != .resolved {
                     Section {
                         TextField(strings.replyPlaceholder, text: $draft, axis: .vertical).lineLimit(2 ... 8)
+                            .supportPrivate(.reply)
                         Button(sending ? strings.sending : strings.replySend, action: send)
                             .disabled(sending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         if let failure { Text(failure).foregroundStyle(.red) }

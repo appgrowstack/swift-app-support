@@ -17,6 +17,7 @@
 - **単体で動く。** `MailSupportTransport` は本文の下に情報を読める行で付けたメールを開きます。`BundledHelpArticles` はアプリに同梱した記事を読みます
 - **できることはtransportが決める。** `SupportTransport` はできることを `capabilities` で返します。返事があれば利用者の問い合わせの一覧を出し、`SupportCenter.unreadCount` をバッジに使えます。画像があればフォームでスクリーンショットを4枚まで受け、メタデータを外した5MB以下のJPEGにします。できない物は画面に出しません
 - **9つの言語を入れてある。** 画面の文言は英語・日本語・韓国語・簡体字・繁体字・スペイン語・ブラジルのポルトガル語・ドイツ語・フランス語。`SupportStrings.forLanguage` が `SupportCenter.lang` から選びます。ほかの言語は自分の `SupportStrings` を渡します
+- **書いた文を画面の録画から隠せる。** 件名・本文・メール・返事の入力欄と、問い合わせの題・メッセージを `supportPrivateContent { part, content in … }` に渡します。アプリはそれを録画のSDKのマークで包みます（swift-app-sessionsなら `AnyView(content.sessionMask())`）。このパッケージは録画のSDKを知りません
 - **外部の依存なし。** Foundation・ImageIO・Observation（メールを開くときだけUIKitかAppKit）。SwiftUIは `SupportSwiftUI` の中だけです
 
 ### 文言

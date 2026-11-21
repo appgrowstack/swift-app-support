@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `supportPrivateContent(_:)`: the support views hand every part that holds the person's words
+  (`SupportPrivatePart`: the subject, body, email and reply fields, request titles and messages) to
+  the app, which wraps it in its screen recorder's mark. Screens pushed from the views read it too.
+
 ## [0.4.0] - 2026-11-22
 
 ### Changed

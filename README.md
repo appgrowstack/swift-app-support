@@ -28,6 +28,10 @@ also brings the person's requests and replies into the app.
 - **Nine languages built in.** The views' words in English, Japanese, Korean, Simplified and
   Traditional Chinese, Spanish, Brazilian Portuguese, German and French. `SupportStrings.forLanguage`
   picks one from `SupportCenter.lang`; pass your own `SupportStrings` for any other language
+- **Hides the person's words from a screen recorder.** The subject, body, email and reply fields,
+  request titles and messages are handed to `supportPrivateContent { part, content in … }`, so the
+  app can wrap them in its recorder's mark (for swift-app-sessions:
+  `AnyView(content.sessionMask())`). The package knows no recorder
 - **No dependencies.** Foundation, ImageIO and Observation (UIKit or AppKit only to open the mail);
   SwiftUI only in `SupportSwiftUI`
 
