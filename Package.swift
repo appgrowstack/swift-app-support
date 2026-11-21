@@ -23,6 +23,7 @@ let package = Package(
     targets: [
         .target(name: "SupportCore"),
         .target(name: "SupportSwiftUI", dependencies: ["SupportCore"]),
-        .testTarget(name: "SupportCoreTests", dependencies: ["SupportCore"])
+        .testTarget(name: "SupportCoreTests", dependencies: ["SupportCore"]),
+        .testTarget(name: "SupportSwiftUITests", dependencies: ["SupportSwiftUI"])
     ]
 )

@@ -16,6 +16,7 @@
 - **情報を添える。** アプリのバージョン・ビルド・OS・端末のモデル・配布元・購読の状態・フォームを開いた画面・記録したセッション・直近の出来事（型のまま）・出したキャンペーン。アプリのほかの所で利用者が書いた文は入れません
 - **単体で動く。** `MailSupportTransport` は本文の下に情報を読める行で付けたメールを開きます。`BundledHelpArticles` はアプリに同梱した記事を読みます
 - **できることはtransportが決める。** `SupportTransport` はできることを `capabilities` で返します。返事があれば利用者の問い合わせの一覧を出し、`SupportCenter.unreadCount` をバッジに使えます。画像があればフォームでスクリーンショットを4枚まで受け、メタデータを外した5MB以下のJPEGにします。できない物は画面に出しません
+- **9つの言語を入れてある。** 画面の文言は英語・日本語・韓国語・簡体字・繁体字・スペイン語・ブラジルのポルトガル語・ドイツ語・フランス語。`SupportStrings.forLanguage` が `SupportCenter.lang` から選びます。ほかの言語は自分の `SupportStrings` を渡します
 - **外部の依存なし。** Foundation・ImageIO・Observation（メールを開くときだけUIKitかAppKit）。SwiftUIは `SupportSwiftUI` の中だけです
 
 ### 文言

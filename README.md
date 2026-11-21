@@ -25,6 +25,9 @@ also brings the person's requests and replies into the app.
   replies, the app lists the person's requests and `SupportCenter.unreadCount` gives the badge. With
   images, the form takes up to four screenshots, re-encoded as JPEG under 5 MB with metadata
   removed. The views hide what the transport cannot do
+- **Nine languages built in.** The views' words in English, Japanese, Korean, Simplified and
+  Traditional Chinese, Spanish, Brazilian Portuguese, German and French. `SupportStrings.forLanguage`
+  picks one from `SupportCenter.lang`; pass your own `SupportStrings` for any other language
 - **No dependencies.** Foundation, ImageIO and Observation (UIKit or AppKit only to open the mail);
   SwiftUI only in `SupportSwiftUI`
 

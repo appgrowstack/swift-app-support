@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `SupportStrings` in Korean, Simplified and Traditional Chinese, Spanish, Brazilian Portuguese,
+  German and French (`.korean`, `.chineseSimplified`, `.chineseTraditional`, `.spanish`,
+  `.portugueseBrazil`, `.german`, `.french`), and `forLanguage(_:)` picks them from a language code
+  (`zh-Hant`, `zh_TW`, `pt-BR`…).
+
 ## [0.2.0] - 2026-11-21
 
 ### Changed
