@@ -3,9 +3,8 @@ English | [日本語](./README.ja.md)
 # swift-app-support
 
 In-app support for a small app: a contact form that attaches what the developer needs to answer,
-the person's own requests and replies, and help articles to search before writing. Replies are
-drafted on the server from the product's help articles and reviewed by the developer before they
-are sent, so the person gets an answer inside the app instead of leaving a one-star review.
+and help articles to search before writing. Requests go to a transport you choose: a mail to your
+support address, or a support server that also brings the person's requests and replies into the app.
 
 ![Swift](https://img.shields.io/badge/Swift-6.2-orange.svg)
 ![Platforms](https://img.shields.io/badge/Platforms-iOS%2017%20%7C%20macOS%2014-blue.svg)
@@ -19,13 +18,16 @@ are sent, so the person gets an answer inside the app instead of leaving a one-s
 - **Answers before the request.** While the person types, the form shows help articles that may
   already answer it (`HelpSearch` works for Japanese and other languages without spaces)
 - **Context attached.** App version, build, OS, device model, channel, subscription state, the
-  screen the form came from, recent events (typed) and in-app campaigns shown. Nothing the person
-  typed elsewhere in the app
-- **Replies inside the app.** Each install keeps a random owner token in the Keychain; with it the
-  app reads its own requests and replies. No account needed. `SupportCenter.unreadCount` gives
-  the badge
-- **Screenshots.** Up to four per request, re-encoded as JPEG under 5 MB with metadata removed
-- **No dependencies.** Foundation, Security, ImageIO and Observation; SwiftUI only in `SupportSwiftUI`
+  screen the form came from, the recorded session, recent events (typed) and in-app campaigns
+  shown. Nothing the person typed elsewhere in the app
+- **Works on its own.** `MailSupportTransport` opens a mail to you with the context as readable
+  lines below the text; `BundledHelpArticles` reads the articles shipped in the app
+- **A transport decides the rest.** `SupportTransport` says what it can do (`capabilities`): with
+  replies, the app lists the person's requests and `SupportCenter.unreadCount` gives the badge; with
+  images, the form takes up to four screenshots, re-encoded as JPEG under 5 MB with metadata removed.
+  The views hide what the transport cannot do
+- **No dependencies.** Foundation, ImageIO and Observation (UIKit or AppKit only to open the mail);
+  SwiftUI only in `SupportSwiftUI`
 
 ## Quick Start
 
@@ -34,15 +36,11 @@ import SupportCore
 import SupportSwiftUI
 
 let support = SupportCenter(
-    client: SupportClient(publicKey: "pk_…", installID: analytics.installID, uid: { auth.uid }),
+    transport: MailSupportTransport(to: "support@example.com"),
+    articles: BundledHelpArticles(resource: "help"),      // help.json in the app bundle
     lang: "ja",
     context: { screen in
-        SupportContext.current(
-            channel: .appStore,
-            isPremium: premium.isPremium,
-            screen: screen,
-            recentEvents: analytics.recent(20).map { SupportRecentEvent(name: $0.name, at: $0.at, props: $0.props) }
-        )
+        SupportContext.current(channel: .appStore, isPremium: premium.isPremium, screen: screen)
     }
 )
 
@@ -54,9 +52,8 @@ NavigationLink("Help") { HelpArticlesView(center: support, screen: "settings") }
 SupportFormView(center: support, screen: "paywall", category: .billing)
 ```
 
-Call `await support.refresh()` on return to the foreground to pick up replies. The server also
-sends a push notification (campaign `support_reply`) when the developer replies, if the product uses
-appgrowstack notifications.
+With a transport that has replies, call `await support.refresh()` on return to the foreground to
+pick up replies.
 
 ## Strings
 

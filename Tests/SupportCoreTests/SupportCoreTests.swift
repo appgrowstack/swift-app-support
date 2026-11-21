@@ -2,28 +2,28 @@ import Foundation
 @testable import SupportCore
 import Testing
 
-/// Records requests and answers from a table of (method path) → (status, body).
-final class FakeTransport: SupportTransport, @unchecked Sendable {
+/// A transport with replies and screenshots that keeps what it was given.
+final class FakeTransport: SupportTransport, HelpArticleSource, @unchecked Sendable {
     private let lock = NSLock()
-    private(set) var requests: [URLRequest] = []
-    var answers: [String: (Int, String)] = [:]
+    private(set) var submitted: [(SupportRequest, SupportContext, String)] = []
+    var capabilities = SupportCapabilities(replies: true, images: true)
+    var ticketList: Result<[SupportTicket], SupportError> = .success([])
+    var articleList: [HelpArticle] = []
 
-    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        let key = "\(request.httpMethod ?? "GET") \(request.url!.path())"
-        let answer = lock.withLock { () -> (Int, String)? in
-            requests.append(request)
-            return answers[key]
-        }
-        guard let (status, body) = answer else { throw URLError(.notConnectedToInternet) }
-        return (Data(body.utf8), HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!)
+    func submit(_ request: SupportRequest, context: SupportContext, lang: String) async throws -> String {
+        lock.withLock { submitted.append((request, context, lang)) }
+        return "tkt_0123456789abcdef"
     }
 
-    func json(_ i: Int) throws -> [String: Any] {
-        try JSONSerialization.jsonObject(with: requests[i].httpBody ?? Data()) as! [String: Any]
+    func tickets() async throws -> [SupportTicket] { try ticketList.get() }
+
+    func reply(_ body: String, to ticketID: String) async throws -> SupportMessage {
+        SupportMessage(id: "msg_1", from: .user, body: body, at: .now)
     }
+
+    func articles(lang: String) async throws -> [HelpArticle] { articleList }
 }
 
-let install = "a1b2c3d4-0000-4000-8000-000000000001"
 let ticketJSON = #"{"tickets":[{"ticket_id":"tkt_0123456789abcdef","status":"answered","subject":null,"created_at":1700000000000,"updated_at":1700000100000,"messages":[{"id":"msg_0123456789abcdef","from":"user","body":"解約したい","at":1700000000000},{"id":"msg_fedcba9876543210","from":"support","body":"App Store で解約できます","at":1700000100000}]}]}"#
 let articlesJSON = #"{"articles":[{"slug":"cancel-subscription","lang":"ja","title":"サブスクリプションを解約する","summary":"iPhoneはApp Store、AndroidはGoogle Playで解約します。","url":"https://gohobishukan.com/help/cancel-subscription/","tags":["billing"],"updated_at":1},{"slug":"widget","lang":"ja","title":"ウィジェットを置く","summary":"ホーム画面にウィジェットを置きます。","url":"https://gohobishukan.com/help/widget/","tags":[],"updated_at":1}]}"#
 
@@ -35,81 +35,57 @@ func context() -> SupportContext {
     )
 }
 
-struct SupportClientTests {
-    @Test func submitSendsTheContractBodyAndThenTheImages() async throws {
-        let transport = FakeTransport()
-        transport.answers["POST /v1/support/tickets"] = (201, #"{"ticket_id":"tkt_0123456789abcdef","status":"waiting","created_at":1}"#)
-        transport.answers["POST /v1/support/tickets/tkt_0123456789abcdef/attachments"] = (201, #"{"id":"att_0123456789abcdef","content_type":"image/jpeg","bytes":3,"at":1}"#)
-        let tokens = MemorySupportTokenStore()
-        let client = SupportClient(publicKey: "pk_KUdMabcdefghijklmnopqrst", installID: install, uid: { "user-1" }, transport: transport, tokens: tokens)
+final class OpenedURLs: @unchecked Sendable {
+    private let lock = NSLock()
+    private var urls: [URL] = []
+    var all: [URL] { lock.withLock { urls } }
+    func add(_ url: URL) { lock.withLock { urls.append(url) } }
+}
 
-        let id = try await client.submit(SupportRequest(category: .billing, subject: "  ", body: " 解約したい \n", email: "", images: [SupportImage(data: Data([1, 2, 3]), contentType: "image/jpeg")]), context: context(), lang: "ja")
-        #expect(id == "tkt_0123456789abcdef")
+struct MailSupportTransportTests {
+    @Test func opensAMailWithTheTextAndTheContext() async throws {
+        let opened = OpenedURLs()
+        let mail = MailSupportTransport(to: "support@example.com") { url in opened.add(url); return true }
+        #expect(mail.capabilities == SupportCapabilities(replies: false, images: false))
 
-        let first = transport.requests[0]
-        #expect(first.url?.absoluteString == "https://api.appgrowstack.com/v1/support/tickets")
-        #expect(first.value(forHTTPHeaderField: "Authorization") == "Bearer pk_KUdMabcdefghijklmnopqrst")
-        #expect(first.value(forHTTPHeaderField: "X-Support-Token") == nil)
-        let body = try transport.json(0)
-        #expect(Set(body.keys) == ["install_id", "uid", "owner_token", "lang", "category", "body", "context"])
-        #expect(body["body"] as? String == "解約したい")
-        #expect(body["category"] as? String == "billing")
-        let token = try #require(body["owner_token"] as? String)
-        #expect(token.count >= 32 && token.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" })
-        #expect(tokens.load() == token)
-
-        let ctx = try #require(body["context"] as? [String: Any])
-        #expect(Set(ctx.keys) == ["platform", "app_version", "build", "os_version", "device_model", "channel", "is_premium", "screen", "recent_events", "campaigns_shown"])
-        #expect(ctx["channel"] as? String == "appstore")
-        let events = try #require(ctx["recent_events"] as? [[String: Any]])
-        #expect(events.count == 20)
-        #expect(events[0]["at"] as? Int == 1_700_000_000_000)
-        #expect((events[0]["props"] as? [String: Any])?["streak_days"] as? Int == 3)
-        #expect(((ctx["campaigns_shown"] as? [[String: Any]])?.first)?["set_version"] as? Int == 3)
-
-        let upload = transport.requests[1]
-        #expect(upload.url?.path() == "/v1/support/tickets/tkt_0123456789abcdef/attachments")
-        #expect(upload.value(forHTTPHeaderField: "Content-Type") == "image/jpeg")
-        #expect(upload.value(forHTTPHeaderField: "X-Support-Token") == token)
-        #expect(upload.httpBody == Data([1, 2, 3]))
+        var ctx = context()
+        ctx.sessionID = "ses_0123456789abcdef"
+        let id = try await mail.submit(SupportRequest(category: .billing, subject: "  ", body: " 解約したい \n"), context: ctx, lang: "ja")
+        #expect(id == "mail")
+        let url = try #require(opened.all.first)
+        let components = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false))
+        #expect(components.scheme == "mailto")
+        #expect(components.path == "support@example.com")
+        let items = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        #expect(items["subject"] == "[billing]")
+        let body = try #require(items["body"])
+        #expect(body.hasPrefix("解約したい\n\n---\n"))
+        #expect(body.contains("App: 3.2.0 (120) appstore"))
+        #expect(body.contains("Device: ios 26.1 iPhone17,1"))
+        #expect(body.contains("Premium: yes"))
+        #expect(body.contains("Screen: settings"))
+        #expect(body.contains("Session: ses_0123456789abcdef"))
+        #expect(body.contains("Campaigns: trial-offer"))
     }
 
-    @Test func ticketsAreEmptyWithoutATokenAndReadWithIt() async throws {
-        let transport = FakeTransport()
-        transport.answers["GET /v1/support/tickets"] = (200, ticketJSON)
-        let tokens = MemorySupportTokenStore()
-        let client = SupportClient(publicKey: "pk_KUdMabcdefghijklmnopqrst", installID: install, transport: transport, tokens: tokens)
-        #expect(try await client.tickets().isEmpty)
-        #expect(transport.requests.isEmpty)
-
-        tokens.save(String(repeating: "t", count: 40))
-        let tickets = try await client.tickets()
-        #expect(transport.requests[0].value(forHTTPHeaderField: "X-Support-Token") == String(repeating: "t", count: 40))
-        #expect(tickets.first?.status == .answered)
-        #expect(tickets.first?.latestReply?.body == "App Store で解約できます")
-        #expect(tickets.first?.subject == nil)
-        #expect(tickets.first?.updatedAt == Date(timeIntervalSince1970: 1_700_000_100))
+    @Test func noMailAppAndNoReplies() async throws {
+        let mail = MailSupportTransport(to: "support@example.com") { _ in false }
+        await #expect(throws: SupportError.transport("no mail app")) { try await mail.submit(SupportRequest(category: .bug, body: "x"), context: context(), lang: "ja") }
+        #expect(try await mail.tickets().isEmpty)
+        await #expect(throws: SupportError.unsupported) { try await mail.reply("x", to: "tkt_x") }
     }
+}
 
-    @Test func errorsAreTyped() async throws {
-        let transport = FakeTransport()
-        transport.answers["POST /v1/support/tickets"] = (429, #"{"error":{"code":"rate_limited","message":"x"}}"#)
-        transport.answers["POST /v1/support/tickets/tkt_ffffffffffffffff/messages"] = (404, #"{"error":{"code":"not_found","message":"x"}}"#)
-        transport.answers["GET /v1/support/articles"] = (400, #"{"error":{"code":"invalid","message":"lang"}}"#)
-        let client = SupportClient(publicKey: "pk_KUdMabcdefghijklmnopqrst", installID: install, transport: transport, tokens: MemorySupportTokenStore())
-        await #expect(throws: SupportError.rateLimited) { try await client.submit(SupportRequest(category: .bug, body: "x"), context: context(), lang: "ja") }
-        await #expect(throws: SupportError.notFound) { try await client.reply("x", to: "tkt_ffffffffffffffff") }
-        await #expect(throws: SupportError.rejected(status: 400, code: "invalid", message: "lang")) { try await client.articles(lang: "ja") }
-        await #expect(throws: SupportError.self) { try await client.uploadImage(SupportImage(data: Data(), contentType: "image/png"), ticketID: "tkt_x") }
-    }
-
-    @Test func articlesAskForTheLanguageAndUseStaging() async throws {
-        let transport = FakeTransport()
-        transport.answers["GET /v1/support/articles"] = (200, articlesJSON)
-        let client = SupportClient(publicKey: "pk_KUdMabcdefghijklmnopqrst", installID: install, endpoint: SupportClient.stagingEndpoint, transport: transport, tokens: MemorySupportTokenStore())
-        let articles = try await client.articles(lang: "zh-Hant")
-        #expect(transport.requests[0].url?.absoluteString == "https://api-staging.appgrowstack.com/v1/support/articles?lang=zh-Hant")
-        #expect(articles.map(\.slug) == ["cancel-subscription", "widget"])
+struct BundledHelpArticlesTests {
+    @Test func picksTheLanguageThenTheBaseThenEnglish() async throws {
+        let en = #"{"slug":"widget","lang":"en","title":"Add the widget","summary":"On the Home Screen.","url":"https://x.com/en/help/widget/","tags":[],"updated_at":1}"#
+        let zh = #"{"slug":"widget","lang":"zh","title":"小组件","summary":"主屏幕。","url":"https://x.com/zh/help/widget/","tags":[],"updated_at":1}"#
+        let bundled = BundledHelpArticles(data: Data(#"{"articles":[\#(en),\#(zh)]}"#.utf8))
+        #expect(try await bundled.articles(lang: "zh-Hans").map(\.lang) == ["zh"])
+        #expect(try await bundled.articles(lang: "en").map(\.lang) == ["en"])
+        #expect(try await bundled.articles(lang: "ja").map(\.lang) == ["en"])
+        #expect(try await BundledHelpArticles(data: Data("nope".utf8)).articles(lang: "ja").isEmpty)
+        #expect(try await BundledHelpArticles(resource: "missing").articles(lang: "ja").isEmpty)
     }
 }
 
@@ -159,13 +135,15 @@ struct HelpSearchTests {
 
 @MainActor
 struct SupportCenterTests {
+    let tickets: [SupportTicket] = try! JSONDecoder().decode(TicketList.self, from: Data(ticketJSON.utf8)).tickets
+    struct TicketList: Decodable { let tickets: [SupportTicket] }
+
     @Test func refreshLoadsAndCountsUnreadUntilOpened() async throws {
         let transport = FakeTransport()
-        transport.answers["GET /v1/support/tickets"] = (200, ticketJSON)
-        transport.answers["GET /v1/support/articles"] = (200, articlesJSON)
+        transport.ticketList = .success(tickets)
+        transport.articleList = HelpSearchTests().articles
         let defaults = UserDefaults(suiteName: "support-tests-\(UUID().uuidString)")!
-        let client = SupportClient(publicKey: "pk_KUdMabcdefghijklmnopqrst", installID: install, transport: transport, tokens: MemorySupportTokenStore(token: String(repeating: "t", count: 40)))
-        let center = SupportCenter(client: client, lang: "ja", context: { _ in context() }, seen: defaults)
+        let center = SupportCenter(transport: transport, lang: "ja", context: { _ in context() }, seen: defaults)
         await center.refresh()
         #expect(center.tickets.count == 1)
         #expect(center.articles.count == 2)
@@ -176,11 +154,25 @@ struct SupportCenterTests {
     }
 
     @Test func refreshKeepsTheErrorQuietly() async {
-        let client = SupportClient(publicKey: "pk_KUdMabcdefghijklmnopqrst", installID: install, transport: FakeTransport(), tokens: MemorySupportTokenStore(token: String(repeating: "t", count: 40)))
-        let center = SupportCenter(client: client, lang: "ja", context: { _ in context() })
+        let transport = FakeTransport()
+        transport.ticketList = .failure(.transport("offline"))
+        let center = SupportCenter(transport: transport, lang: "ja", context: { _ in context() })
         await center.refresh()
-        #expect(center.lastError != nil)
+        #expect(center.lastError == .transport("offline"))
         #expect(center.tickets.isEmpty)
+    }
+
+    @Test func withoutRepliesNoListIsReadAndScreenshotsAreDropped() async throws {
+        let transport = FakeTransport()
+        transport.capabilities = SupportCapabilities(replies: false, images: false)
+        transport.ticketList = .failure(.transport("must not be read"))
+        let center = SupportCenter(transport: transport, articles: BundledHelpArticles(articles: HelpSearchTests().articles), lang: "ja", context: { _ in context() })
+        await center.refresh()
+        #expect(center.lastError == nil)
+        #expect(center.articles.count == 2)
+        _ = try await center.submit(SupportRequest(category: .bug, body: "x", images: [SupportImage(data: Data([1]), contentType: "image/jpeg")]), screen: "settings")
+        #expect(transport.submitted.first?.0.images.isEmpty == true)
+        #expect(transport.submitted.first?.2 == "ja")
     }
 }
 

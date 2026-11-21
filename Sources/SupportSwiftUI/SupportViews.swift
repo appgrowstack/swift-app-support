@@ -60,10 +60,12 @@ public struct SupportFormView: View {
                         }
                     }
                 }
-                Section {
-                    let title = images.isEmpty ? strings.addImages : "\(strings.images) \(images.count)"
-                    PhotosPicker(selection: $picked, maxSelectionCount: 4, matching: .screenshots) {
-                        Label(title, systemImage: "photo.on.rectangle")
+                if center.capabilities.images {
+                    Section {
+                        let title = images.isEmpty ? strings.addImages : "\(strings.images) \(images.count)"
+                        PhotosPicker(selection: $picked, maxSelectionCount: 4, matching: .screenshots) {
+                            Label(title, systemImage: "photo.on.rectangle")
+                        }
                     }
                 }
                 Section {

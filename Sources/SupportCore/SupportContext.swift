@@ -20,6 +20,8 @@ public struct SupportContext: Sendable, Hashable, Codable {
     public var deviceModel: String
     public var channel: Channel
     public var isPremium: Bool?
+    /// The recorded session the person was in when writing, if the app records sessions.
+    public var sessionID: String?
     /// The screen the form was opened from.
     public var screen: String?
     /// Recent events, newest first. Only the first 20 are sent.
@@ -35,6 +37,7 @@ public struct SupportContext: Sendable, Hashable, Codable {
         deviceModel: String,
         channel: Channel,
         isPremium: Bool? = nil,
+        sessionID: String? = nil,
         screen: String? = nil,
         recentEvents: [SupportRecentEvent] = [],
         campaignsShown: [SupportCampaignShown] = []
@@ -46,6 +49,7 @@ public struct SupportContext: Sendable, Hashable, Codable {
         self.deviceModel = deviceModel
         self.channel = channel
         self.isPremium = isPremium
+        self.sessionID = sessionID
         self.screen = screen
         self.recentEvents = recentEvents
         self.campaignsShown = campaignsShown
@@ -55,6 +59,7 @@ public struct SupportContext: Sendable, Hashable, Codable {
     public static func current(
         channel: Channel,
         isPremium: Bool? = nil,
+        sessionID: String? = nil,
         screen: String? = nil,
         recentEvents: [SupportRecentEvent] = [],
         campaignsShown: [SupportCampaignShown] = [],
@@ -70,6 +75,7 @@ public struct SupportContext: Sendable, Hashable, Codable {
             deviceModel: String(hardwareModel().prefix(64)),
             channel: channel,
             isPremium: isPremium,
+            sessionID: sessionID,
             screen: screen.map { String($0.prefix(64)) },
             recentEvents: recentEvents,
             campaignsShown: campaignsShown
@@ -96,7 +102,7 @@ public struct SupportContext: Sendable, Hashable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case platform, appVersion = "app_version", build, osVersion = "os_version", deviceModel = "device_model", channel
-        case isPremium = "is_premium", screen, recentEvents = "recent_events", campaignsShown = "campaigns_shown"
+        case isPremium = "is_premium", sessionID = "session_id", screen, recentEvents = "recent_events", campaignsShown = "campaigns_shown"
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -108,6 +114,7 @@ public struct SupportContext: Sendable, Hashable, Codable {
         try c.encode(String(deviceModel.prefix(64)), forKey: .deviceModel)
         try c.encode(channel, forKey: .channel)
         try c.encodeIfPresent(isPremium, forKey: .isPremium)
+        try c.encodeIfPresent(sessionID, forKey: .sessionID)
         try c.encodeIfPresent(screen.map { String($0.prefix(64)) }, forKey: .screen)
         try c.encode(Array(recentEvents.prefix(20)), forKey: .recentEvents)
         try c.encode(Array(campaignsShown.prefix(10)), forKey: .campaignsShown)

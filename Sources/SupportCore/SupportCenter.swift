@@ -12,27 +12,38 @@ public final class SupportCenter {
     /// The last error from `refresh`, for a quiet notice in the list. Sending errors are thrown instead.
     public private(set) var lastError: SupportError?
 
-    public let client: SupportClient
+    public let transport: any SupportTransport
     /// The language of the person's UI (`ja`, `en`, `zh-Hant`). Requests and articles use it.
     public var lang: String
+    private let articleSource: (any HelpArticleSource)?
     private let context: @MainActor (_ screen: String?) -> SupportContext
     private let seen: UserDefaults
     private let seenKey: String
 
-    /// - Parameter context: builds the context at send time (`SupportContext.current(…)` with the
-    ///   app's premium state, recent events and campaigns). `screen` is where the form was opened.
+    /// - Parameters:
+    ///   - transport: where requests go (``MailSupportTransport``, or one that talks to a server).
+    ///   - articles: the help articles. When `nil`, the transport's own, if it has any.
+    ///   - context: builds the context at send time (`SupportContext.current(…)` with the app's
+    ///     premium state, recent events and campaigns). `screen` is where the form was opened.
+    ///   - storageKey: separates the read marks of two centers in one app.
     public init(
-        client: SupportClient,
+        transport: any SupportTransport,
+        articles: (any HelpArticleSource)? = nil,
         lang: String,
         context: @escaping @MainActor (_ screen: String?) -> SupportContext,
-        seen: UserDefaults = .standard
+        seen: UserDefaults = .standard,
+        storageKey: String = "default"
     ) {
-        self.client = client
+        self.transport = transport
+        self.articleSource = articles ?? (transport as? any HelpArticleSource)
         self.lang = lang
         self.context = context
         self.seen = seen
-        self.seenKey = "swift-app-support.seen.\(client.publicKey)"
+        self.seenKey = "swift-app-support.seen.\(storageKey)"
     }
+
+    /// What the transport can do. The views hide the replies and the screenshots when it cannot.
+    public var capabilities: SupportCapabilities { transport.capabilities }
 
     /// Requests with a reply the person hasn't opened yet. Show it as a badge on the entry point.
     public var unreadCount: Int {
@@ -55,22 +66,22 @@ public final class SupportCenter {
     public func refresh() async {
         isLoading = true
         defer { isLoading = false }
-        async let t = client.tickets()
-        async let a = client.articles(lang: lang)
-        do {
-            tickets = try await t
-            lastError = nil
-        } catch let e as SupportError {
-            lastError = e
-        } catch {
-            lastError = .transport(error.localizedDescription)
+        if capabilities.replies {
+            do {
+                tickets = try await transport.tickets()
+                lastError = nil
+            } catch let e as SupportError {
+                lastError = e
+            } catch {
+                lastError = .transport(error.localizedDescription)
+            }
         }
-        if let loaded = try? await a { articles = loaded }
+        await loadArticles()
     }
 
     /// Loads the articles only (for the form's suggestions before anything was sent).
     public func loadArticles() async {
-        if let loaded = try? await client.articles(lang: lang) { articles = loaded }
+        if let source = articleSource, let loaded = try? await source.articles(lang: lang) { articles = loaded }
     }
 
     /// Articles that may already answer what the person is typing.
@@ -81,14 +92,16 @@ public final class SupportCenter {
     /// Sends the form. Returns the new request's id and reloads the list.
     @discardableResult
     public func submit(_ request: SupportRequest, screen: String? = nil) async throws -> String {
-        let id = try await client.submit(request, context: context(screen), lang: lang)
-        if let t = try? await client.tickets() { tickets = t }
+        var request = request
+        if !capabilities.images { request.images = [] }
+        let id = try await transport.submit(request, context: context(screen), lang: lang)
+        if capabilities.replies, let t = try? await transport.tickets() { tickets = t }
         return id
     }
 
     /// Adds a message to a request and reloads it.
     public func reply(_ body: String, to ticket: SupportTicket) async throws {
-        _ = try await client.reply(body, to: ticket.id)
-        if let t = try? await client.tickets() { tickets = t }
+        _ = try await transport.reply(body, to: ticket.id)
+        if let t = try? await transport.tickets() { tickets = t }
     }
 }

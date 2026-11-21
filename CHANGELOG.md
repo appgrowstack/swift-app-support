@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking.** `SupportCenter(transport:articles:lang:context:)` takes any `SupportTransport`
+  (submit, tickets, reply and `capabilities`) and an optional `HelpArticleSource`. The views hide
+  the replies and the screenshots when the transport cannot do them.
+
+### Added
+
+- `MailSupportTransport`: opens a mail to your support address with the context as readable lines.
+- `BundledHelpArticles`: help articles shipped in the app, falling back to the base language and
+  then English.
+- `SupportContext.sessionID` (`session_id`).
+- `SupportError.unsupported`.
+
+### Removed
+
+- `SupportClient`, `SupportTokenStore` and its stores, and the HTTP transport. Talking to a support
+  server is a transport in a separate connector package.
+
 ## [0.1.0] - 2026-11-21
 
 ### Added
