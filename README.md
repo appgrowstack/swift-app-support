@@ -87,7 +87,7 @@ Open it in Xcode with Product > Build Documentation. Changes are listed in
 ## Installation
 
 ```swift
-.package(url: "https://github.com/appgrowstack/swift-app-support.git", .upToNextMinor(from: "0.4.0"))
+.package(url: "https://github.com/appgrowstack/swift-app-support.git", .upToNextMinor(from: "0.5.0"))
 ```
 
 ```swift
@@ -102,7 +102,7 @@ Open it in Xcode with Product > Build Documentation. Changes are listed in
 ## Installation
 
 ```swift
-.package(url: "https://github.com/appgrowstack/swift-app-support.git", .upToNextMinor(from: "0.4.0"))
+.package(url: "https://github.com/appgrowstack/swift-app-support.git", .upToNextMinor(from: "0.5.0"))
 ```
 
 ## Requirements
